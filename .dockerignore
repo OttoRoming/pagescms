@@ -1,0 +1,30 @@
+# Dependencies and build output
+node_modules
+.next
+out
+build
+coverage
+
+# Git and tooling
+.git
+.gitignore
+.github
+.vscode
+.docs
+
+# Environment files (runtime values are passed by Docker)
+.env
+.env.*
+!.env.docker.example
+!.env.local.example
+
+# Local databases and logs
+local.db
+*.log
+*.tsbuildinfo
+
+# Container files themselves
+Dockerfile
+.dockerignore
+docker-compose.yml
+compose.yml

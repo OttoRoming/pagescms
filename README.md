@@ -29,6 +29,88 @@ Use that if you want to:
 - edit content without running anything locally,
 - stay on the latest hosted version.
 
+## Self-hosting with Docker
+
+A production Dockerfile and Compose setup are included. The image uses the Next.js standalone output and runs as a non-root user. Pending database migrations run automatically when the container starts.
+
+### Quick start
+
+1. Create the environment file:
+
+```bash
+cp .env.docker.example .env
+```
+
+2. Set at least `BASE_URL`, `BETTER_AUTH_SECRET`, `CRYPTO_KEY`, and `POSTGRES_PASSWORD` in `.env`. Generate the app secrets with:
+
+```bash
+openssl rand -base64 32
+```
+
+Use a URL-safe value for `POSTGRES_PASSWORD`, since it becomes part of `DATABASE_URL`:
+
+```bash
+openssl rand -hex 32
+```
+
+3. Create your GitHub App and add its credentials to `.env` with the helper:
+
+```bash
+npm run setup:github-app -- --base-url http://localhost:3000 --env .env
+```
+
+`BASE_URL` must match the URL used by the GitHub App callback, setup, and webhook URLs. See [Create the GitHub App](https://pagescms.org/docs/guides/installing/github-app/) if you prefer to configure it manually.
+
+4. Build and start the app and database:
+
+```bash
+docker compose up -d --build
+```
+
+The app is available at `http://localhost:3000` by default. Change `APP_PORT` in `.env` to expose a different host port.
+
+For production, put the app behind an HTTPS reverse proxy (Caddy, Nginx, or your platform's load balancer) and set `BASE_URL` to the public URL.
+
+Useful commands:
+
+```bash
+docker compose logs -f app    # follow application logs
+docker compose down           # stop the containers
+docker compose down -v        # stop and delete the database volume
+```
+
+### Migrations
+
+The app applies pending migrations before starting. Set `RUN_MIGRATIONS=false` if migrations are handled by a separate deployment job, then run them manually with:
+
+```bash
+docker compose run --rm -e RUN_MIGRATIONS=false app node scripts/migrate.mjs
+```
+
+Migrations are serialized with a PostgreSQL advisory lock, so starting multiple app replicas at the same time is safe.
+
+### Using an external database
+
+The app image only needs `DATABASE_URL`; it does not require the bundled `db` service. Use a Compose override to point the app at your PostgreSQL instance:
+
+```yaml
+# docker-compose.override.yml
+services:
+  app:
+    environment:
+      DATABASE_URL: postgresql://user:password@your-db-host:5432/pagescms
+```
+
+Then build the image, run migrations, and start only the app:
+
+```bash
+docker compose build app
+docker compose run --rm --no-deps -e RUN_MIGRATIONS=false app node scripts/migrate.mjs
+docker compose up -d --no-deps app
+```
+
+You can also run the image directly with your own orchestrator by setting `DATABASE_URL` and the other required environment variables.
+
 ## Local development
 
 ### What you need
