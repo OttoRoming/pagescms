@@ -79,6 +79,16 @@ docker compose down           # stop the containers
 docker compose down -v        # stop and delete the database volume
 ```
 
+### Published images
+
+The `Build and publish container` GitHub Actions workflow publishes an image to GitHub Container Registry on pushes to `main` and `v*` tags:
+
+```bash
+docker pull ghcr.io/<owner>/pagescms:latest
+```
+
+Replace `<owner>` with the GitHub account or organization that owns the repository. Packages are private by default; make the package public in its GitHub package settings to allow anonymous pulls. For private packages, authenticate with `docker login ghcr.io` first.
+
 ### Migrations
 
 The app applies pending migrations before starting. Set `RUN_MIGRATIONS=false` if migrations are handled by a separate deployment job, then run them manually with:
