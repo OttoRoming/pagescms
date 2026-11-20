@@ -19,12 +19,7 @@ services:
       start_period: 5s
 
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        BASE_URL: ${BASE_URL:-http://localhost:3000}
-    image: pagescms:latest
+    image: ghcr.io/ottoroming/pagescms:latest
     restart: unless-stopped
     env_file:
       - .env

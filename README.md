@@ -31,7 +31,7 @@ Use that if you want to:
 
 ## Self-hosting with Docker
 
-A production Dockerfile and Compose setup are included. The image uses the Next.js standalone output and runs as a non-root user. Pending database migrations run automatically when the container starts.
+A production Dockerfile and Compose setup are included. The Compose setup pulls the published container image; the Dockerfile remains available if you want to build the image yourself. The image uses the Next.js standalone output and runs as a non-root user. Pending database migrations run automatically when the container starts.
 
 ### Quick start
 
@@ -61,10 +61,11 @@ npm run setup:github-app -- --base-url http://localhost:3000 --env .env
 
 `BASE_URL` must match the URL used by the GitHub App callback, setup, and webhook URLs. See [Create the GitHub App](https://pagescms.org/docs/guides/installing/github-app/) if you prefer to configure it manually.
 
-4. Build and start the app and database:
+4. Pull and start the app and database:
 
 ```bash
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
 The app is available at `http://localhost:3000` by default. Change `APP_PORT` in `.env` to expose a different host port.
@@ -79,15 +80,65 @@ docker compose down           # stop the containers
 docker compose down -v        # stop and delete the database volume
 ```
 
+<details>
+<summary>Complete example <code>compose.yml</code></summary>
+
+The repository ships with this file. It runs the app and a PostgreSQL database, persists the database in a named volume, waits for PostgreSQL to become healthy, and runs pending migrations automatically when the app starts.
+
+```yaml
+name: pagescms
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pagescms}
+      POSTGRES_USER: ${POSTGRES_USER:-pagescms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pagescms}
+    volumes:
+      - pagescms-db:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  app:
+    image: ghcr.io/ottoroming/pagescms:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pagescms}:${POSTGRES_PASSWORD:-pagescms}@db:5432/${POSTGRES_DB:-pagescms}
+      # Set to "false" if migrations are run by a separate deployment job.
+      RUN_MIGRATIONS: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+volumes:
+  pagescms-db:
+```
+
+</details>
+
 ### Published images
 
 The `Build and publish container` GitHub Actions workflow publishes an image to GitHub Container Registry on pushes to `main` and `v*` tags:
 
 ```bash
-docker pull ghcr.io/<owner>/pagescms:latest
+docker pull ghcr.io/ottoroming/pagescms:latest
 ```
 
-Replace `<owner>` with the GitHub account or organization that owns the repository. Packages are private by default; make the package public in its GitHub package settings to allow anonymous pulls. For private packages, authenticate with `docker login ghcr.io` first.
+Packages are private by default; make the package public in its GitHub package settings to allow anonymous pulls. For private packages, authenticate with `docker login ghcr.io` first.
 
 ### Migrations
 
@@ -111,10 +162,10 @@ services:
       DATABASE_URL: postgresql://user:password@your-db-host:5432/pagescms
 ```
 
-Then build the image, run migrations, and start only the app:
+Then pull the image, run migrations, and start only the app:
 
 ```bash
-docker compose build app
+docker compose pull app
 docker compose run --rm --no-deps -e RUN_MIGRATIONS=false app node scripts/migrate.mjs
 docker compose up -d --no-deps app
 ```
