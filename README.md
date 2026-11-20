@@ -94,7 +94,7 @@ Migrations are serialized with a PostgreSQL advisory lock, so starting multiple 
 The app image only needs `DATABASE_URL`; it does not require the bundled `db` service. Use a Compose override to point the app at your PostgreSQL instance:
 
 ```yaml
-# docker-compose.override.yml
+# compose.override.yml
 services:
   app:
     environment:

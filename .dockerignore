@@ -26,5 +26,5 @@ local.db
 # Container files themselves
 Dockerfile
 .dockerignore
-docker-compose.yml
 compose.yml
+compose.override.yml
